@@ -1,4 +1,7 @@
-/skels/
+/skels/*.cmd
+/skels/*.ko
+/skels/*.o
+/skels/*Kbu
 vmlinux
 zImage
 serial.pts
