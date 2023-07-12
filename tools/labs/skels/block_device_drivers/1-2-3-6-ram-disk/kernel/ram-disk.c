@@ -67,6 +67,11 @@ static void my_block_transfer(struct my_block_dev *dev, sector_t sector,
 		return;
 
 	/* TODO 3: read/write to dev buffer depending on dir */
+	if (dir == READ) {
+		memcpy(buffer, dev->data + offset, len);
+	} else if (dir == WRITE) {
+		memcpy(dev->data + offset, buffer, len);
+	}
 }
 
 /* to transfer data using bio structures enable USE_BIO_TRANFER */
@@ -84,6 +89,8 @@ static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
 {
 	struct request *rq;
 	struct my_block_dev *dev = hctx->queue->queuedata;
+	struct bio_vec bvec;
+	struct req_iterator rq_iter;
 
 	/* TODO 2: get pointer to request */
 	rq = bd->rq;
@@ -98,13 +105,21 @@ static blk_status_t my_block_request(struct blk_mq_hw_ctx *hctx,
 		goto out;
 	}
 
-	/* TODO 2: print request information */
-	pr_info("request received: start sector: %llu data size: %u\n", rq->__sector, rq->__data_len);
-
 #if USE_BIO_TRANSFER == 1
 	/* TODO 6: process the request by calling my_xfer_request */
 #else
 	/* TODO 3: process the request by calling my_block_transfer */
+	rq_for_each_segment(bvec, rq, rq_iter) {
+		/* TODO 2: print request information */
+		sector_t sector = rq_iter.iter.bi_sector;
+		unsigned int len = rq_iter.iter.bi_size;
+		char *buffer = bio_data(rq_iter.bio); // page address shifted by offset
+		int dir = bio_data_dir(rq_iter.bio); // read or write
+		pr_info("bio request: start sector: %llu len: %u, dir: %d\n", sector, len, dir);
+
+		my_block_transfer(&g_dev, sector, len, buffer, dir);
+	}
+
 #endif
 
 	/* TODO 2: end request successfully */
