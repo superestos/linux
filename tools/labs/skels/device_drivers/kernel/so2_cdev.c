@@ -4,6 +4,7 @@
  * All tasks
  */
 
+#include <asm-generic/errno-base.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -22,7 +23,7 @@ MODULE_LICENSE("GPL");
 #define LOG_LEVEL	KERN_INFO
 
 #define MY_MAJOR		42
-#define MY_MINOR		1
+#define MY_MINOR		0
 #define NUM_MINORS		1
 #define MODULE_NAME		"so2_cdev"
 #define MESSAGE			"hello\n"
@@ -37,8 +38,10 @@ struct so2_device_data {
 	/* TODO 2: add cdev member */
 	struct cdev cdev;
 	/* TODO 4: add buffer with BUFSIZ elements */
+	char buffer[BUFSIZ];
 	/* TODO 7: extra members for home */
 	/* TODO 3: add atomic_t access variable to keep track if file is opened */
+	atomic_t opened;
 };
 
 struct so2_device_data devs[NUM_MINORS];
@@ -93,7 +96,11 @@ so2_cdev_read(struct file *file,
 #endif
 
 	/* TODO 4: Copy data->buffer to user_buffer, use copy_to_user */
+	if (copy_to_user(user_buffer, data->buffer + *offset, size))
+		return -EFAULT;
 
+	to_read = size;
+	*offset += to_read;
 	return to_read;
 }
 
@@ -107,6 +114,11 @@ so2_cdev_write(struct file *file,
 
 
 	/* TODO 5: copy user_buffer to data->buffer, use copy_from_user */
+	if (copy_from_user(data->buffer + *offset, user_buffer, size))
+		return -EFAULT;
+
+	*offset += size;
+
 	/* TODO 7: extra tasks for home */
 
 	return size;
@@ -136,7 +148,9 @@ static const struct file_operations so2_fops = {
 	.open = so2_cdev_open,
 	.release = so2_cdev_release,
 /* TODO 4: add read function */
+	.read = so2_cdev_read,
 /* TODO 5: add write function */
+	.write = so2_cdev_write,
 /* TODO 6: add ioctl function */
 };
 
@@ -156,6 +170,7 @@ static int so2_cdev_init(void)
 		/* TODO 7: extra tasks, for home */
 #else
 		/*TODO 4: initialize buffer with MESSAGE string */
+		strcpy(devs[i].buffer, MESSAGE);
 		/* TODO 3: set access variable to 0, use atomic_set */
 #endif
 		/* TODO 7: extra tasks for home */
