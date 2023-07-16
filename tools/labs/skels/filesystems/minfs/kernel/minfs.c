@@ -435,16 +435,24 @@ static int minfs_fill_super(struct super_block *s, void *data, int silent)
 	 * the device, i.e. the block with the index 0. This is the index
 	 * to be passed to sb_bread().
 	 */
+	if (!(bh = sb_bread(s, 1)))
+		goto out_bad_sb;
 
 	/* TODO 2: interpret read data as minfs_super_block */
+	ms = (struct minfs_super_block *) bh->b_data;
 
 	/* TODO 2: check magic number with value defined in minfs.h. jump to out_bad_magic if not suitable */
+	if (ms->magic == MINFS_MAGIC)
+		goto out_bad_magic;
 
 	/* TODO 2: fill super_block with magic_number, super_operations */
+	s->s_magic = MINFS_MAGIC;
+	s->s_op = &minfs_ops;
 
 	/* TODO 2: Fill sbi with rest of information from disk superblock
 	 * (i.e. version).
 	 */
+	sbi->version = 0;
 
 	/* allocate root inode and root dentry */
 	/* TODO 2: use myfs_get_inode instead of minfs_iget */
@@ -482,12 +490,16 @@ static struct dentry *minfs_mount(struct file_system_type *fs_type,
 		int flags, const char *dev_name, void *data)
 {
 	/* TODO 1: call superblock mount function */
+	return mount_bdev(fs_type, flags, dev_name, data, minfs_fill_super);
 }
 
 static struct file_system_type minfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "minfs",
 	/* TODO 1: add mount, kill_sb and fs_flags */
+	.mount 		= minfs_mount,
+	.kill_sb	= kill_block_super,
+	.fs_flags	= FS_REQUIRES_DEV,
 };
 
 static int __init minfs_init(void)
